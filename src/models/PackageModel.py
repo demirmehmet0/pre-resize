@@ -46,102 +46,215 @@ class OutputImage(Output):
 
     class Config:
         title = "Image"
+        json_schema_extra = {
+            "outputStructure": {
+                "name": "string",
+                "uID": "string",
+                "mimeType": "string",
+                "encoding": "string",
+                "value": "string",
+                "r_key": "string",
+                "shape_key": "string",
+            },
+            "outputNotes": [
+                "Image frame is stored in Redis (r_key/shape_key); value is empty. Connect only to image inputs.",
+                "Resized frame: pixel coordinates of detections computed on the original frame no longer match it.",
+            ],
+        }
 
 
-class KeepSideFalse(Config):
-    name: Literal["False"] = "False"
-    value: Literal[False] = False
-    type: Literal["bool"] = "bool"
-    field: Literal["option"] = "option"
-
-    class Config:
-        title = "Disable"
-
-
-class KeepSideTrue(Config):
-    name: Literal["True"] = "True"
-    value: Literal[True] = True
-    type: Literal["bool"] = "bool"
-    field: Literal["option"] = "option"
-
-    class Config:
-        title = "Enable"
-
-
-class KeepSideBBox(Config):
+class Width(Config):
     """
-    Rotate image without catting off sides.
+    Target width in pixels.
     """
 
-    name: Literal["KeepSide"] = "KeepSide"
-    value: Union[KeepSideTrue, KeepSideFalse]
-    type: Literal["object"] = "object"
-    field: Literal["dropdownlist"] = "dropdownlist"
-
-    class Config:
-        title = "Keep Sides"
-
-
-class Degree(Config):
-    """
-    Positive angles specify counterclockwise rotation while negative angles indicate clockwise rotation.
-    """
-
-    name: Literal["Degree"] = "Degree"
-    value: int = Field(ge=-359.0, le=359.0, default=0)
+    name: Literal["Width"] = "Width"
+    value: int = Field(ge=1, le=8192, default=640)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
-    placeHolder: Literal["[-359, 359]"] = "[-359, 359]"
+    placeHolder: Literal["[1-8192]"] = "[1-8192]"
 
     class Config:
-        title = "Angle"
+        title = "Width (px)"
+        json_schema_extra = {"shortDescription": "Target Width"}
 
 
-class PackageInputs(Inputs):
+class Height(Config):
+    """
+    Target height in pixels.
+    """
+
+    name: Literal["Height"] = "Height"
+    value: int = Field(ge=1, le=8192, default=640)
+    type: Literal["number"] = "number"
+    field: Literal["textInput"] = "textInput"
+    placeHolder: Literal["[1-8192]"] = "[1-8192]"
+
+    class Config:
+        title = "Height (px)"
+        json_schema_extra = {"shortDescription": "Target Height"}
+
+
+class PadColor(Config):
+    """
+    Colour of the padding added around the image, as #RRGGBB (#000000 black, #FFFFFF white).
+    """
+
+    name: Literal["PadColor"] = "PadColor"
+    value: str = Field(default="#000000", pattern=r"^#([A-Fa-f0-9]{6})$")
+    type: Literal["string"] = "string"
+    field: Literal["textInput"] = "textInput"
+    placeHolder: Literal["#000000"] = "#000000"
+
+    class Config:
+        title = "Padding Color"
+        json_schema_extra = {"shortDescription": "Padding Color"}
+
+
+class ResizeInputs(Inputs):
     inputImage: InputImage
 
 
-class PackageConfigs(Configs):
-    degree: Degree
-    drawBBox: KeepSideBBox
-
-
-class PackageOutputs(Outputs):
+class ResizeOutputs(Outputs):
     outputImage: OutputImage
 
 
-class PackageRequest(Request):
-    inputs: Optional[PackageInputs]
-    configs: PackageConfigs
+class SizeConfigs(Configs):
+    width: Width
+    height: Height
+
+
+class LetterboxConfigs(Configs):
+    width: Width
+    height: Height
+    padColor: PadColor
+
+
+class StretchRequest(Request):
+    inputs: Optional[ResizeInputs]
+    configs: SizeConfigs
 
     class Config:
         json_schema_extra = {"target": "configs"}
 
 
-class PackageResponse(Response):
-    outputs: PackageOutputs
+class StretchResponse(Response):
+    outputs: ResizeOutputs
 
 
-class PackageExecutor(Config):
-    name: Literal["Package"] = "Package"
-    value: Union[PackageRequest, PackageResponse]
+class StretchExecutor(Config):
+    """
+    Resizes to exactly Width x Height. The aspect ratio is not kept, so the image may look stretched.
+    """
+
+    name: Literal["Stretch"] = "Stretch"
+    value: Union[StretchRequest, StretchResponse]
     type: Literal["object"] = "object"
     field: Literal["option"] = "option"
 
     class Config:
-        title = "Package"
+        title = "Stretch"
+        json_schema_extra = {"target": {"value": 0}}
+
+
+class FitWithinRequest(Request):
+    inputs: Optional[ResizeInputs]
+    configs: SizeConfigs
+
+    class Config:
+        json_schema_extra = {"target": "configs"}
+
+
+class FitWithinResponse(Response):
+    outputs: ResizeOutputs
+
+
+class FitWithinExecutor(Config):
+    """
+    Shrinks or enlarges the image to the largest size that fits inside Width x Height, keeping the aspect
+    ratio. No padding is added, so the output can be smaller than the target on one side.
+    """
+
+    name: Literal["FitWithin"] = "FitWithin"
+    value: Union[FitWithinRequest, FitWithinResponse]
+    type: Literal["object"] = "object"
+    field: Literal["option"] = "option"
+
+    class Config:
+        title = "Fit Within"
+        json_schema_extra = {"target": {"value": 0}}
+
+
+class LetterboxRequest(Request):
+    inputs: Optional[ResizeInputs]
+    configs: LetterboxConfigs
+
+    class Config:
+        json_schema_extra = {"target": "configs"}
+
+
+class LetterboxResponse(Response):
+    outputs: ResizeOutputs
+
+
+class LetterboxExecutor(Config):
+    """
+    Fits the image inside Width x Height keeping the aspect ratio, then pads the rest with Padding Color.
+    The output is always exactly Width x Height.
+    """
+
+    name: Literal["Letterbox"] = "Letterbox"
+    value: Union[LetterboxRequest, LetterboxResponse]
+    type: Literal["object"] = "object"
+    field: Literal["option"] = "option"
+
+    class Config:
+        title = "Fit (Padded)"
+        json_schema_extra = {"target": {"value": 0}}
+
+
+class CenterCropRequest(Request):
+    inputs: Optional[ResizeInputs]
+    configs: SizeConfigs
+
+    class Config:
+        json_schema_extra = {"target": "configs"}
+
+
+class CenterCropResponse(Response):
+    outputs: ResizeOutputs
+
+
+class CenterCropExecutor(Config):
+    """
+    Fills Width x Height keeping the aspect ratio and cuts what overflows, from the centre.
+    The output is always exactly Width x Height; the edges of the image may be lost.
+    """
+
+    name: Literal["CenterCrop"] = "CenterCrop"
+    value: Union[CenterCropRequest, CenterCropResponse]
+    type: Literal["object"] = "object"
+    field: Literal["option"] = "option"
+
+    class Config:
+        title = "Fill (Center Crop)"
         json_schema_extra = {"target": {"value": 0}}
 
 
 class ConfigExecutor(Config):
+    """
+    How the image is brought to Width x Height: stretched, fitted inside, fitted with padding, or filled and
+    cropped from the centre.
+    """
+
     name: Literal["ConfigExecutor"] = "ConfigExecutor"
-    value: Union[PackageExecutor]
+    value: Union[StretchExecutor, FitWithinExecutor, LetterboxExecutor, CenterCropExecutor]
     type: Literal["executor"] = "executor"
     field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
 
     class Config:
         title = "Task"
-        json_schema_extra = {"target": "value"}
+        json_schema_extra = {"shortDescription": "Resize Mode"}
 
 
 class PackageConfigs(Configs):
@@ -151,4 +264,4 @@ class PackageConfigs(Configs):
 class PackageModel(Package):
     configs: PackageConfigs
     type: Literal["component"] = "component"
-    name: Literal["Package"] = "Package"
+    name: Literal["Resize"] = "Resize"

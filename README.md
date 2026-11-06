@@ -1,24 +1,24 @@
-# [Package Name]
+# Resize
 
-> One-sentence summary of what this package does (e.g., "Rotates an image by a specified angle.")
+> Brings an image to a target width and height: stretched, fitted inside, fitted with padding, or filled and cropped from the centre.
 
-**Category:** Utility / Capsule / Classical Computer Vision / Preprocessing / Auxiliary / Sources / Widget
+**Category:** Preprocessing
 
-**Status:** Stable / Beta / Experimental
+**Status:** Beta
 
-**Last Updated:** DD.MM.YYYY
+**Last Updated:** 06.11.2026
 
 ---
 
 ## 1. Overview
 
-Describe in 2–3 sentences/paragraphs what this package does, what problem it solves, and typical use cases. Mention when a user should choose this package over a similar one, if relevant.
+Resize sets an image to a fixed `Width` x `Height`. The task decides what happens to the aspect ratio: `Stretch` ignores it, `FitWithin` keeps it and leaves the output smaller on one side, `Letterbox` keeps it and pads the rest with a colour, `CenterCrop` keeps it and cuts what overflows. Choose it over Scaling when the target is a fixed size rather than a percentage of the original.
 
 **Typical use cases:**
 
-- [Use case 1]
-- [Use case 2]
-- [Use case 3]
+- Preparing a dataset version for training at a fixed input size (dataset version "Resize" step).
+- Giving a model the same input size in a deployed flow as it was trained with.
+- Producing uniform thumbnails for a screen or dashboard.
 
 ---
 
@@ -26,7 +26,7 @@ Describe in 2–3 sentences/paragraphs what this package does, what problem it s
 
 | Field Name | Kind/Type | Required | Default | Description |
 |---|---|---|---|---|
-| `[inputFieldName]` | `[Image / string / number / list / object ...]` | Yes/No | `[default or —]` | [What this input represents] |
+| `inputImage` | `Image` or list of `Image` | Yes | — | Frame to resize |
 
 > Derived from the package `Inputs` / `Input` classes. A field that accepts a single object or a list is shown explicitly.
 
@@ -36,7 +36,11 @@ Describe in 2–3 sentences/paragraphs what this package does, what problem it s
 
 | Parameter | Type | Field Type (UI control) | Allowed Values / Range | Default | Description |
 |---|---|---|---|---|---|
-| `[ParamName]` | `[number/bool/string/object]` | `[textInput/dropdownlist/...]` | `[range or options]` | `[default]` | [What this parameter controls, and how it affects behavior] |
+| `Width` | number | textInput | 1–8192 | 640 | Target width in pixels |
+| `Height` | number | textInput | 1–8192 | 640 | Target height in pixels |
+| `PadColor` | string | textInput | `#RRGGBB` | `#000000` | Padding colour (Letterbox task only) |
+
+Tasks: `Stretch` (Width, Height), `FitWithin` (Width, Height), `Letterbox` — shown as "Fit (Padded)" (Width, Height, PadColor), `CenterCrop` — shown as "Fill (Center Crop)" (Width, Height).
 
 > Derived from the package `Configs` classes, including validation bounds and dropdown option labels where present. `ConfigExecutor` is not included.
 
@@ -46,7 +50,7 @@ Describe in 2–3 sentences/paragraphs what this package does, what problem it s
 
 | Field Name | Kind/Type | Description |
 |---|---|---|
-| `[outputFieldName]` | `[Image / string / number / list / object ...]` | [What this output represents] |
+| `outputImage` | `Image` | The resized frame (stored in Redis; `value` is empty) |
 
 > Derived from the package `Outputs` classes.
 
@@ -54,25 +58,21 @@ Describe in 2–3 sentences/paragraphs what this package does, what problem it s
 
 ## 5. Use Case Examples
 
-**Use case 1: [Short title]**
+**Use case 1: Training data at a fixed size**
 
-[Describe the scenario — what pipeline is being built, what package(s) come before this one and provide its input, what this package does in that context, and what package(s) come after it to consume its output.]
+A dataset version asks for 640x640 with black edges. The augment flow feeds each image through Resize (`Letterbox`, 640, 640, `#000000`) and saves the result; the training archive is built from the saved frames.
 
-**Use case 2: [Short title]**
+**Use case 2: Same input size in production**
 
-[Same structure as above, for a different context.]
-
-**Use case 3: [Short title, optional]**
-
-[Same structure as above, for a different context.]
+A camera source feeds Resize (`Stretch`, 640, 640) before the detector, matching how the model was trained.
 
 ---
 
 ## 6. Limitations and Notes
 
-- [Known constraints, e.g. value ranges, unsupported formats, size limits]
-- [Performance notes, e.g. GPU requirement, expected latency]
-- [Common pitfalls or things to watch out for]
+- Detections are not carried. Boxes computed on the original frame do not match the resized one. `src/utils/resize.py` returns the transform for each task (`x_new = x * scale_x + offset_x`, same for y) so they can be moved; `CenterCrop` can push boxes partly outside the frame.
+- `FitWithin` output can be smaller than the target on one side; use `Letterbox` for an exact size with the ratio kept.
+- Shrinking uses `INTER_AREA`, enlarging `INTER_LINEAR`.
 
 ---
 
@@ -106,3 +106,5 @@ To run all checks at any time, use `pre-commit run --all-files`.
    | `refactor`, `docs`, `style`, `test`, `build`, `ci`, `chore` | none |
 
 3. Merge `develop` into `main` to release. A release PR is then opened that bumps the version in `setup.py` and updates `CHANGELOG.md`. Merging it creates the tag and the GitHub Release. Don't edit the version yourself.
+
+- Schema: `python apps/export.py` writes `data.json`. Try against a running host: `python apps/client.py`.
