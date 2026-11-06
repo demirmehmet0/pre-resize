@@ -1,0 +1,12 @@
+# Local checks, identical to CI. One-time setup:
+#   pip install pre-commit
+#   pre-commit install
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/novavision-ai/package-ci
+    rev: v1.0.0
+    hooks:
+      - id: nv-spec-check
+      - id: nv-lint
+      - id: nv-commit-msg

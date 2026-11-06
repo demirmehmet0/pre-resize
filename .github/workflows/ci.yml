@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: novavision-ai/package-ci/.github/workflows/package-ci.yml@v1
+    # with:
+    #   ignore-rules: "NV603"   # skip specific spec rules for this package
+    #   strict: true            # fail on spec warnings too
