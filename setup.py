@@ -1,14 +1,13 @@
 import setuptools
-
 setuptools.setup(
-    name="package",
+    name="pre-resize",
     version="0.0.1",
     author="DigiNova",
     author_email='info@diginova.com.tr',
-    description="Package",
-    url='https://github.com/novavision-ai/package',
+    description="Resize - Preprocessing Component for NOVAVISION",
+    url='https://github.com/novavision-ai/pre-resize',
     license='MIT',
-    install_requires=['sdk', 'opencv-python-headless'],
+    install_requires=['sdk', 'opencv-python-headless', 'numpy'],
 
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -17,15 +16,11 @@ setuptools.setup(
     ],
 
     packages=[
-        'novavision.package',
-        'novavision.package.classes',
-        'novavision.package.configs',
-        'novavision.package.dataloaders',
-        'novavision.package.executors',
-        'novavision.package.models',
-        'novavision.package.utils',
-        'novavision.package.weights'
+        'pre.resize',
+        'pre.resize.executors',
+        'pre.resize.models',
+        'pre.resize.utils'
     ],
-    package_dir={'novavision.package': 'src'},
+    package_dir={'pre.resize': 'src'},
     python_requires=">=3.6"
 )
